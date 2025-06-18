@@ -166,6 +166,37 @@ int main()
         return 1;
     }
     std::ofstream log("DumpLog.ini", std::ios::app);
+   int main()
+{
+    if (Driver->Connect())
+        printf("[+] Vulnerable Driver Is Loaded ...\n");
+    else
+    {
+        printf("[-] Vulnerable Driver Is Not Loaded Pls Load it  ...\n");
+        getchar();
+        exit(-1);
+    }
+    Driver->systemCR3 = Driver->GetSystemCR3();
+	if (!Driver->systemCR3)
+	{
+		printf("[-] Cant Get System DTB\n");
+        getchar();
+		exit(-1);
+	}
+    printf("System DTB -> %llx\n", Driver->systemCR3);
+    ULONG len = 0;
+    NtQuerySystemInformation_Dynamic(11, nullptr, 0, &len);
+    auto* buffer = reinterpret_cast<PSYSTEM_MODULE_INFORMATION>(new BYTE[len]);
+    if (NtQuerySystemInformation_Dynamic(11, buffer, len, &len)) {
+        printf("[!] NtQuerySystemInformation failed\n");
+        getchar();
+        delete[] buffer;
+        return 1;
+    }
+    std::ofstream log("DumpLog.ini", std::ios::app);
+    std::string targetDriver;
+    std::cout << "Enter the name of the driver to dump (e.g., Test.sys): ";
+    std::getline(std::cin, targetDriver);
     for (ULONG i = 0; i < buffer->ModuleCount; ++i) {
         auto& mod = buffer->Modules[i];
         std::string name(mod.ImageName + mod.ModuleNameOffset);
@@ -180,7 +211,7 @@ int main()
             << " | Base: 0x" << mod.ImageBase
             << " | Size: 0x" << std::hex << mod.ImageSize << std::dec << "\n";
 
-        if (name.find("MangerSt.sys") != std::string::npos) {
+        if (name.find(targetDriver) != std::string::npos) {
             DumpDriverFromMemory(name, mod.ImageBase, mod.ImageSize);
         }
     }
